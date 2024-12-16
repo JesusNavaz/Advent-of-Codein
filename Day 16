@@ -1,0 +1,123 @@
+var timer = System.Diagnostics.Stopwatch.StartNew();
+var input = await File.ReadAllLinesAsync("input.txt");
+
+var paths = new List<Position>();
+var start = new Position(-1, -1);
+var end = new Position(-1, -1);
+
+var gridSize = input.Length;
+var grid = new bool[gridSize, gridSize];
+
+for (var row = 0; row < gridSize; row++)
+{
+    for (var col = 0; col < gridSize; col++)
+    {
+        grid[row, col] = true;
+
+        switch (input[row][col])
+        {
+            case 'S':
+                start = new Position(row, col);
+                paths.Add(new Position(row, col));
+                break;
+            case 'E':
+                end = new Position(row, col);
+                paths.Add(new Position(row, col));
+                break;
+            case '.':
+                paths.Add(new Position(row, col));
+                break;
+            case '#':
+                grid[row, col] = false;
+                break;
+        }
+    }
+}
+
+var seen = new Dictionary<(Position Position, Direction direction), int>();
+var queue = new PriorityQueue<(Position Position, Direction Direction, HashSet<Position> Moves, int Weight), int>();
+var startNode = paths.First(p => p == start);
+queue.Enqueue((startNode, Direction.Right, [], 0), 0);
+
+var shortestPath = new HashSet<Position> { startNode };
+var shortestPathLength = 0;
+
+
+while (queue.Count > 0)
+{
+    var current = queue.Dequeue();
+
+    if (current.Position == end)
+    {
+        if (shortestPathLength == 0)
+        {
+            Console.WriteLine($"Part 1: {current.Moves.Count + current.Weight}");
+            shortestPathLength = current.Moves.Count + current.Weight;
+        }
+
+        if (shortestPathLength < current.Moves.Count + current.Weight)
+        {
+            Console.WriteLine($"Part 2: {shortestPath.Count}");
+            Console.WriteLine($"{timer.ElapsedMilliseconds}ms");
+            break;
+        }
+
+        shortestPath.UnionWith(current.Moves);
+    }
+
+    if (seen.GetValueOrDefault((current.Position, current.Direction), int.MaxValue) < current.Weight)
+    {
+        continue;
+    }
+
+    seen[(current.Position, current.Direction)] = current.Weight;
+
+    var next = current.Position.Move(current.Direction);
+    if (grid[next.Row, next.Col])
+    {
+        var moves = new HashSet<Position>(current.Moves) { next };
+        queue.Enqueue((next, current.Direction, moves, current.Weight), current.Weight + moves.Count + 1);
+    }
+
+    var left = current.Direction.TurnLeft();
+    next = current.Position.Move(left);
+    if (grid[next.Row, next.Col])
+    {
+        var moves = new HashSet<Position>(current.Moves) { next };
+        queue.Enqueue((next, left, moves, current.Weight + 1000), current.Weight + current.Moves.Count + 1001);
+    }
+
+    var right = current.Direction.TurnRight();
+    next = current.Position.Move(right);
+    if (grid[next.Row, next.Col])
+    {
+        var moves = new HashSet<Position>(current.Moves) { next };
+        queue.Enqueue((next, right, moves, current.Weight + 1000), current.Weight + current.Moves.Count + 1001);
+    }
+}
+
+internal record Direction(int Row, int Col)
+{
+    public Direction TurnLeft()
+    {
+        return new Direction(-Col, Row);
+    }
+
+    public Direction TurnRight()
+    {
+        return new Direction(Col, -Row);
+    }
+
+    public static readonly Direction Up = new(-1, 0);
+    public static readonly Direction Down = new(1, 0);
+    public static readonly Direction Left = new(0, -1);
+    public static readonly Direction Right = new(0, 1);
+}
+
+internal record Position(int Row, int Col)
+{
+    public Position Move(Direction dir)
+    {
+        return new Position(Row + dir.Row, Col + dir.Col);
+    }
+}
